@@ -37,15 +37,6 @@ func NewMail(subject, t string, data interface{}) *Mail {
 		Mime:    "MIME-version: 1.0;\nContent-Type: text/html; charset=\"UTF-8\";\n\n",
 		Subject: subject,
 	}
-	/*templateData := struct {
-		Total     string
-		AvgCredit string
-		AvgDebit  string
-	}{
-		Total:     "1000",
-		AvgCredit: "2000",
-		AvgDebit:  "3000",
-	}*/
 	mail.ParseTemplate(t, data)
 	return mail
 }

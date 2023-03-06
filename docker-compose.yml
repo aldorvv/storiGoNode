@@ -40,11 +40,17 @@ services:
       - go-backend
     env_file:
       - ./.env
-    ports:
-      - "8000:8000"
     depends_on:
       db:
         condition: service_healthy
+  proxy:
+    build: ./nginx
+    ports:
+      - "80:80"
+    networks:
+      - go-backend
+    depends_on:
+      - api
 
 networks:
   go-backend:
