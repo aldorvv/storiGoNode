@@ -1,0 +1,55 @@
+version: '3.7'
+
+services:
+  s3:
+    image: localstack/localstack:latest
+    container_name: stori-go-s3
+    networks:
+      - go-backend
+    environment:
+      - SERVICES=s3
+      - DEFAULT_REGION=us-east-1
+      - DEFAULT_BUCKET_NAME=com.storage.challenge
+      - AWS_ACCESS_KEY_ID=dev
+      - AWS_SECRET_ACCESS_KEY=dev
+    volumes:
+      - './s3:/docker-entrypoint-initaws.d'
+  db:
+    build: ./db
+    platform: linux/x86_64
+    container_name: stori-go-db
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 5s
+      start_period: 10s
+      timeout: 5s
+      retries: 10
+    image: stori-db:1.0
+    environment:
+      - MYSQL_ROOT_PASSWORD=root
+    networks:
+      - go-backend
+    volumes:
+    - type: volume
+      source: stori-go-volume
+      target: /data/mysql
+  api:
+    build: .
+    container_name: stori-go-api
+    networks:
+      - go-backend
+    env_file:
+      - ./.env
+    ports:
+      - "8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+
+networks:
+  go-backend:
+    driver: bridge
+
+volumes:
+    stori-go-volume:
+        name: stori-go-volume
