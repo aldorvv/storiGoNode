@@ -178,6 +178,7 @@ func uploadFile(file *multipart.FileHeader) string {
 	return scv.UploadFile(file)
 }
 
+// Get moves with accountID = :id
 func getAccountMoves(accountID string) []models.Move {
 	const query = "SELECT * FROM move WHERE accountID=?;"
 	result, err := REPO.Query(query, accountID)

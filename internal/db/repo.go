@@ -1,3 +1,4 @@
+// Data repository module
 package db
 
 import (
@@ -13,6 +14,7 @@ var (
 	repo      *sql.DB
 )
 
+// Create a new Database connection
 func New() *sql.DB {
 	uri := os.Getenv("DB_URI")
 	db, err := sql.Open("mysql", uri)
@@ -22,6 +24,7 @@ func New() *sql.DB {
 	return db
 }
 
+// Singleton for DB connection
 func GetRepo() *sql.DB {
 	singleton.Do(func() {
 		repo = New()

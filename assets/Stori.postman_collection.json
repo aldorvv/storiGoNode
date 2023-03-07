@@ -1,0 +1,71 @@
+{
+	"info": {
+		"_postman_id": "5a2816a7-37d8-42a9-b80c-24f9d627643e",
+		"name": "Stori",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+		"_exporter_id": "20682788"
+	},
+	"item": [
+		{
+			"name": "Email summary",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "0.0.0.0/accounts/1/summary?email=YOUR_EMAIL_HERE",
+					"host": [
+						"0",
+						"0",
+						"0",
+						"0"
+					],
+					"path": [
+						"accounts",
+						"1",
+						"summary"
+					],
+					"query": [
+						{
+							"key": "email",
+							"value": "YOUR_EMAIL_HERE"
+						}
+					]
+				},
+				"description": "Get an account's summary, please change the email query param!"
+			},
+			"response": []
+		},
+		{
+			"name": "Create account",
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "formdata",
+					"formdata": [
+						{
+							"key": "file",
+							"type": "file",
+							"src": []
+						}
+					]
+				},
+				"url": {
+					"raw": "0.0.0.0/accounts/",
+					"host": [
+						"0",
+						"0",
+						"0",
+						"0"
+					],
+					"path": [
+						"accounts",
+						""
+					]
+				},
+				"description": "Upload a CSV file and create a new account."
+			},
+			"response": []
+		}
+	]
+}

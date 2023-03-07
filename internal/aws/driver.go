@@ -1,3 +1,4 @@
+// AWS Connection module
 package aws
 
 import (
@@ -28,6 +29,7 @@ type Config struct {
 	Bucket  string
 }
 
+// Load config from env
 func LoadConfig() Config {
 	return Config{
 		Address: os.Getenv("AWS_S3_ENDPOINT_URL"),
@@ -44,6 +46,7 @@ type AWS struct {
 	Config  Config
 }
 
+// Creates a new connection to AWS
 func New(config Config) (*AWS, error) {
 	sess, err := session.NewSessionWithOptions(
 		session.Options{
@@ -66,6 +69,7 @@ func New(config Config) (*AWS, error) {
 	}, nil
 }
 
+// Upload a file to the defauklt bucket
 func (ins *AWS) UploadFile(file *multipart.FileHeader) string {
 	// Create a new S3 service client
 	svc := s3.New(ins.Session)
@@ -90,6 +94,7 @@ func (ins *AWS) UploadFile(file *multipart.FileHeader) string {
 	return url
 }
 
+// Singleton for AWS connection
 func GetConnection() *AWS {
 	singleton.Do(func() {
 		var err error

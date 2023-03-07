@@ -1,3 +1,4 @@
+// Mailing management module
 package mailing
 
 import (
@@ -14,6 +15,7 @@ type Client struct {
 	Auth     smtp.Auth
 }
 
+// Create a new SMTP client
 func NewClient() *Client {
 	client := &Client{
 		User:     os.Getenv("EMAIL_HOST_USER"),
@@ -32,6 +34,7 @@ type Mail struct {
 	Content string
 }
 
+// Create a new Mail object with default MIME
 func NewMail(subject, t string, data interface{}) *Mail {
 	mail := &Mail{
 		Mime:    "MIME-version: 1.0;\nContent-Type: text/html; charset=\"UTF-8\";\n\n",
@@ -41,6 +44,7 @@ func NewMail(subject, t string, data interface{}) *Mail {
 	return mail
 }
 
+// Parse html template to text to be sent
 func (m *Mail) ParseTemplate(file string, data interface{}) error {
 	cwd, _ := os.Getwd()
 	path := cwd + "/templates/" + file
@@ -58,6 +62,7 @@ func (m *Mail) ParseTemplate(file string, data interface{}) error {
 	return nil
 }
 
+// Send the email to specified user
 func (m *Mail) SendTo(to string) {
 	body := "To: " + to + "\r\nSubject: " + m.Subject + "\r\n" + m.Mime + "\r\n" + m.Content
 	client := NewClient()
