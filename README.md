@@ -9,6 +9,7 @@ summary in your inbox!
 ## Setup
 
 First of all, clone this repo!
+
 ´´´bash
 git clone git@github.com:aldorvv/PythonStoriNode.git
 cd PythonStoriNode
@@ -20,6 +21,7 @@ for your gmail account.
 You can see [how to get one here!](https://support.google.com/accounts/answer/185833?)
 
 Once you got your password and user, create a copy of ´.env.template´ file with
+
 ´´´bash
 cp .env.template .env
 ´´´
@@ -30,8 +32,10 @@ respectively.
 ## Up and run!
 
 Once you did all the setup steps, please go ahead and up the server with
+
 ´´´bash
 docker compose up
 ´´´
+
 Please be patient! It'll take about a couple of minutes to start, then please go ahead and test it as you please,
 I already attached a sample csv file named ´out.csv´ and a postman collection for make your testing easier.
