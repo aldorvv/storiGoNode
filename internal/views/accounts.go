@@ -1,8 +1,8 @@
 package views
 
 import (
+	"database/sql"
 	"encoding/csv"
-	"fmt"
 	"mime/multipart"
 	"net/http"
 	"strconv"
@@ -15,11 +15,13 @@ import (
 	"github.com/storiGoNode/internal/mailing"
 )
 
+var REPO *sql.DB = db.GetRepo()
+
+// List endpoint for `/accounts`
 func GetAccounts(c *gin.Context) {
 	const query = "SELECT * FROM accounts;"
-	repo := db.GetRepo()
 
-	result, err := repo.Query(query)
+	result, err := REPO.Query(query)
 	var accounts []models.Account
 
 	if err != nil {
@@ -37,13 +39,13 @@ func GetAccounts(c *gin.Context) {
 	c.IndentedJSON(http.StatusOK, accounts)
 }
 
+// Get endpoint for `/accounts/:id`
 func GetAccount(c *gin.Context) {
 	const query = "SELECT * FROM accounts WHERE id=?;"
-	repo := db.GetRepo()
 	id := c.Param("id")
 	var account models.Account
 
-	result, err := repo.Query(query, id)
+	result, err := REPO.Query(query, id)
 
 	if err != nil {
 		panic(err.Error())
@@ -59,11 +61,11 @@ func GetAccount(c *gin.Context) {
 	c.IndentedJSON(http.StatusOK, account)
 }
 
+// Post endpoint for `/accounts/`
 func PostAccount(c *gin.Context) {
 	var newAccount models.Account
-	repo := db.GetRepo()
 	const query = "INSERT INTO accounts (`file`) VALUES (?);"
-	stmt, err := repo.Prepare(query)
+	stmt, err := REPO.Prepare(query)
 	if err != nil {
 		c.IndentedJSON(http.StatusBadRequest, err)
 		return
@@ -87,7 +89,7 @@ func PostAccount(c *gin.Context) {
 	newAccount.ID = int(accountID)
 
 	csvFile, _ := file.Open()
-	err = insertMovesFromFile(csvFile, newAccount)
+	err = createMovesFromFile(csvFile, newAccount)
 
 	if err != nil {
 		c.IndentedJSON(http.StatusBadRequest, err)
@@ -98,82 +100,23 @@ func PostAccount(c *gin.Context) {
 
 }
 
+// Get endpoint for `/accounts/:id/summary?email`
 func GetSummary(c *gin.Context) {
-	repo := db.GetRepo()
 	id := c.Param("id")
+	recipient := c.Query("email")
 
-	var accountExists int
-	repo.QueryRow("SELECT COUNT(*) FROM accounts WHERE id=?;", id).Scan(&accountExists)
-	if accountExists == 0 {
+	if !doAccountExist(id) {
 		c.IndentedJSON(http.StatusNotFound, "Account not found.")
 		return
 	}
 
-	const query = "SELECT * FROM move WHERE accountID=?;"
-	recipient := c.Query("email")
-	result, err := repo.Query(query, id)
+	stats := getStatsFor(id)
 
-	if err != nil {
-		panic(err.Error())
-	}
-
-	var moves []models.Move
-
-	for result.Next() {
-		var move models.Move
-		err = result.Scan(&move.ID, &move.Kind, &move.Quantity, &move.Date, &move.AccountID)
-		if err != nil {
-			panic(err.Error())
-		}
-		moves = append(moves, move)
-	}
-
-	var debSum, credSum, total float64
-
-	for _, move := range moves {
-		if move.Kind == -1 {
-			debSum += move.Quantity
-		} else {
-			credSum += move.Quantity
-		}
-		total += move.Quantity
-	}
-
-	var debCount int
-	repo.QueryRow("SELECT COUNT(*) FROM move WHERE kind=-1 AND accountID=?;", id).Scan(&debCount)
-	avgDeb := debSum / float64(debCount)
-	fmt.Println(debCount)
-
-	var credCount int
-	repo.QueryRow("SELECT COUNT(*) FROM move WHERE kind=1 AND accountID=?;", id).Scan(&credCount)
-	avgCred := credSum / float64(credCount)
-	fmt.Println(credCount)
-
-	type MonthCount struct {
-		Month string
-		Count int
-	}
-
-	monthCounts := []MonthCount{}
-
-	for i := 1; i <= 12; i++ {
-		currentCount := 0
-		repo.QueryRow("SELECT COUNT(*) FROM move WHERE MONTH(date)=? AND accountID=?;", i, id).Scan(&currentCount)
-		if currentCount > 0 {
-			monthCounts = append(monthCounts, MonthCount{Month: time.Month(i).String(), Count: currentCount})
-		}
-	}
-
-	templateData := struct {
-		Total       string
-		AvgCredit   string
-		AvgDebit    string
-		MonthCounts []MonthCount
-	}{
-		Total:       strconv.FormatFloat(total, 'g', 5, 64),
-		AvgCredit:   strconv.FormatFloat(avgCred, 'g', 5, 64),
-		AvgDebit:    strconv.FormatFloat(avgDeb, 'g', 5, 64),
-		MonthCounts: monthCounts,
+	templateData := mailing.TemplateData{
+		Total:       strconv.FormatFloat(stats["total"], 'g', 5, 64),
+		AvgCredit:   strconv.FormatFloat(stats["avgCred"], 'g', 5, 64),
+		AvgDebit:    strconv.FormatFloat(stats["avgDeb"], 'g', 5, 64),
+		MonthCounts: getMonthlyCounts(id),
 	}
 
 	m := mailing.NewMail("Your summary is ready 🚀", "summary.html", templateData)
@@ -182,9 +125,9 @@ func GetSummary(c *gin.Context) {
 	c.IndentedJSON(http.StatusOK, "Email sent to "+recipient+"!")
 }
 
-func insertMovesFromFile(csvFile multipart.File, belongsTo models.Account) error {
+// Create moves for each new account from parsed file
+func createMovesFromFile(csvFile multipart.File, belongsTo models.Account) error {
 	const query = "INSERT INTO move (`kind`, `quantity`, `date`, `accountID`) VALUES (?, ?, ?, ?);"
-	repo := db.GetRepo()
 
 	reader := csv.NewReader(csvFile)
 	records, err := reader.ReadAll()
@@ -219,7 +162,7 @@ func insertMovesFromFile(csvFile multipart.File, belongsTo models.Account) error
 			Date:      date,
 		}
 
-		stmt, _ := repo.Prepare(query)
+		stmt, _ := REPO.Prepare(query)
 		_, err = stmt.Exec(move.Kind, move.Quantity, move.Date, move.AccountID)
 
 		if err != nil {
@@ -229,7 +172,90 @@ func insertMovesFromFile(csvFile multipart.File, belongsTo models.Account) error
 	return nil
 }
 
+// Upload file to an S3 bucket
 func uploadFile(file *multipart.FileHeader) string {
 	scv := aws.GetConnection()
 	return scv.UploadFile(file)
+}
+
+func getAccountMoves(accountID string) []models.Move {
+	const query = "SELECT * FROM move WHERE accountID=?;"
+	result, err := REPO.Query(query, accountID)
+
+	if err != nil {
+		panic(err.Error())
+	}
+
+	var moves []models.Move
+
+	for result.Next() {
+		var move models.Move
+		err = result.Scan(&move.ID, &move.Kind, &move.Quantity, &move.Date, &move.AccountID)
+		if err != nil {
+			panic(err.Error())
+		}
+		moves = append(moves, move)
+	}
+	return moves
+}
+
+// Verifies an account is present in the database
+func doAccountExist(accountID string) bool {
+	const query = "SELECT COUNT(*) FROM accounts WHERE id=?;"
+	var accountExists int
+	REPO.QueryRow(query, accountID).Scan(&accountExists)
+
+	return accountExists != 0
+}
+
+// Returns a map with the calculated stats for an account
+func getStatsFor(accountID string) map[string]float64 {
+	const query = "SELECT COUNT(*) FROM move WHERE kind=? AND accountID=?;"
+	var debSum, credSum, total float64
+
+	for _, move := range getAccountMoves(accountID) {
+		if move.Kind == -1 {
+			debSum += move.Quantity
+		} else {
+			credSum += move.Quantity
+		}
+		total += move.Quantity
+	}
+
+	var debCount int
+	REPO.QueryRow(query, -1, accountID).Scan(&debCount)
+	avgDeb := debSum / float64(debCount)
+
+	var credCount int
+	REPO.QueryRow(query, 1, accountID).Scan(&credCount)
+	avgCred := credSum / float64(credCount)
+
+	stats := make(map[string]float64)
+	stats["avgDeb"] = avgDeb
+	stats["avgCred"] = avgCred
+	stats["total"] = total
+
+	return stats
+}
+
+// Return how many moves the user did in each month, ignore zeros
+func getMonthlyCounts(accountID string) []mailing.MonthCount {
+	const query = "SELECT COUNT(*) FROM move WHERE MONTH(date)=? AND accountID=?;"
+	monthCounts := []mailing.MonthCount{}
+
+	for i := 1; i <= 12; i++ {
+		currentCount := 0
+		REPO.QueryRow(query, i, accountID).Scan(&currentCount)
+		if currentCount > 0 {
+			monthCounts = append(
+				monthCounts,
+				mailing.MonthCount{
+					Month: time.Month(i).String(),
+					Count: currentCount,
+				},
+			)
+		}
+	}
+
+	return monthCounts
 }

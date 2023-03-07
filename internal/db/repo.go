@@ -4,6 +4,8 @@ import (
 	"database/sql"
 	"os"
 	"sync"
+
+	_ "github.com/go-sql-driver/mysql"
 )
 
 var (
