@@ -10,8 +10,8 @@ summary in your inbox!
 
 First of all, clone this repo!
 ´´´bash
-git clone git@github.com:aldorvv/storiGoNode.git
-cd storiGoNode
+git clone git@github.com:aldorvv/PythonStoriNode.git
+cd PythonStoriNode
 ´´´
 
 In order to setup the email account to use you should use an "Application password"
